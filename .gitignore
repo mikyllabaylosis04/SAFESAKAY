@@ -36,3 +36,29 @@ yarn-error.log
 !/storage/**/
 !/storage/**/.gitignore
 
+# SafeSakay Mobile
+node_modules/
+.expo/
+dist/
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Private credentials
+*.jks
+*.keystore
+*.p12
+*.pem
+*service-account*.json
+
+# Local editor files
+.claude/
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+

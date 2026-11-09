@@ -32,6 +32,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('commissions:process-settlement-reminders')->dailyAt('08:00');
     })
     ->withMiddleware(function (Middleware $middleware): void {
+        // Railway terminates HTTPS at its proxy. Trust forwarded proto/host so
+        // sessions, URLs, and asset links stay on the public HTTPS domain.
+        $middleware->trustProxies(at: '*');
+
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->web(prepend: [
