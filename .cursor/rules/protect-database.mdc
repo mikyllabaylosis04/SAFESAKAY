@@ -1,0 +1,27 @@
+---
+description: Never wipe local MySQL demo data when using the agent
+alwaysApply: true
+---
+
+# Protect SafeSakay database (local MySQL)
+
+The app uses **MySQL `safesakayvue`** for real demo data (orgs, boats, trips, bookings, users). **Do not erase it.**
+
+## Forbidden unless the user explicitly asks in chat to reset or restore the database
+
+- `php artisan migrate:fresh`, `migrate:refresh`, `migrate:reset`, `db:wipe`, `schema:drop`
+- One-off debug scripts that call `migrate:fresh` or `db:wipe`
+- Any `db:seed --class=Restore*` or `storage/scripts/restore-demo-from-snapshots.php`
+
+`.env` blocks these while `ALLOW_DESTRUCTIVE_DB=false` and `ALLOW_RESTORE_SCRIPTS=false` (even if the user said "code only" in an older message).
+
+## Safe alternatives
+
+- Run tests: `php artisan test` (uses **SQLite in-memory** via `phpunit.xml`, not MySQL)
+- UI/backend changes: edit code only; no DB reset
+- Restore demo from snapshots: `php storage/scripts/restore-demo-from-snapshots.php` (adds data; does not wipe)
+- Full backup before risky work: `php storage/scripts/backup-database.php` → `storage/backups/`
+
+## If the user truly needs a clean schema
+
+Tell them to run `migrate:fresh` **themselves** in an interactive terminal, or set `ALLOW_DESTRUCTIVE_DB=true` in `.env` temporarily. Default is **false** so the agent cannot wipe data silently.

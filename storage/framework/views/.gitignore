@@ -1,0 +1,60 @@
+
+# SAFESAKAY - Laravel + Vue
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+/auth.json
+
+# Dependencies
+/vendor/
+/node_modules/
+
+# Generated frontend files
+/public/build/
+/public/hot
+/public/storage
+
+# Laravel storage - keep only .gitignore placeholders
+/storage/**
+!/storage/**/
+!/storage/**/.gitignore
+
+# Laravel cache
+/bootstrap/cache/*
+!/bootstrap/cache/.gitignore
+
+# Database backups and local databases
+*.sql
+*.sqlite
+*.sqlite3
+*.bak
+
+# Certificates and private keys
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Logs and temporary files
+*.log
+*.tmp
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing and coverage
+.phpunit.result.cache
+/.phpunit.cache/
+/coverage/
+
+# IDE settings
+/.idea/
+/.vscode/
+/.fleet/
+/.nova/
+
+# System files
+.DS_Store
+Thumbs.db
