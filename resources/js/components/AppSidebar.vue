@@ -174,17 +174,16 @@ const platformSystemItems = computed<NavItem[]>(() => [
 // ==========================================
 // ORGANIZATION ADMIN - MAIN MANAGEMENT
 //
-// NEW ORDER:
-// 1. User Management
+// 1. Route Management
 // 2. Boat Management
-// 3. Route Management
+// 3. User Management
 // ==========================================
 
 const organizationManagementItems: NavItem[] = [
     {
-        title: 'User Management',
-        href: '/users',
-        icon: Users,
+        title: 'Route Management',
+        href: '/routes',
+        icon: MapPin,
     },
     {
         title: 'Boat Management',
@@ -192,9 +191,9 @@ const organizationManagementItems: NavItem[] = [
         icon: Ship,
     },
     {
-        title: 'Route Management',
-        href: '/routes',
-        icon: MapPin,
+        title: 'User Management',
+        href: '/users',
+        icon: Users,
     },
 ];
 
