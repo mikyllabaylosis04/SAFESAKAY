@@ -42,7 +42,31 @@ class AdminPasswordResetCodeTest extends TestCase
         $this->get(route('password.request'))
             ->assertInertia(fn (Assert $page) => $page
                 ->where('step', 'code')
-                ->where('email', 'admin@safesakay.test'));
+                ->where('email', 'admin@safesakay.test')
+                ->where('resetCode', null));
+    }
+
+    public function test_reset_code_is_shown_when_email_cannot_be_sent(): void
+    {
+        config([
+            'mail.default' => 'smtp',
+            'mail.mailers.smtp.host' => '127.0.0.1',
+            'mail.mailers.smtp.port' => 1,
+            'mail.mailers.smtp.timeout' => 1,
+        ]);
+
+        User::factory()->create(['email' => 'admin@safesakay.test']);
+
+        $this->post(route('password.code.send'), ['email' => 'admin@safesakay.test'])
+            ->assertRedirect(route('password.request'))
+            ->assertSessionHas('reset_code');
+
+        $code = session('reset_code');
+
+        $this->get(route('password.request'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('step', 'code')
+                ->where('resetCode', $code));
     }
 
     public function test_unknown_email_is_rejected(): void

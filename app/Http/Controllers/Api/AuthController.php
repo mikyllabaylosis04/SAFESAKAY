@@ -18,7 +18,6 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
-use Throwable;
 
 class AuthController extends Controller
 {
@@ -131,14 +130,13 @@ class AuthController extends Controller
             ]);
         }
 
-        try {
-            $codes->send($user);
-        } catch (Throwable $exception) {
-            report($exception);
+        $fallbackCode = $codes->send($user);
 
+        if ($fallbackCode !== null) {
             return response()->json([
-                'message' => 'Could not send the reset code to '.$user->email.'. Check the Gmail mail settings in .env.',
-            ], 500);
+                'message' => 'Email could not be sent. Use this reset code: '.$fallbackCode,
+                'reset_code' => $fallbackCode,
+            ]);
         }
 
         return response()->json([

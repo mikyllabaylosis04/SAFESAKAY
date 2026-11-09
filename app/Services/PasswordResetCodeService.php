@@ -16,9 +16,11 @@ class PasswordResetCodeService
     public const EXPIRES_IN_MINUTES = 15;
 
     /**
-     * @throws Throwable when the email could not be sent
+     * Store a reset code and email it.
+     *
+     * @return string|null The code when email delivery failed, so the requester can still continue.
      */
-    public function send(User $user): void
+    public function send(User $user): ?string
     {
         $email = Str::lower($user->email);
         $code = (string) random_int(100000, 999999);
@@ -34,10 +36,12 @@ class PasswordResetCodeService
         try {
             $user->notify(new PasswordResetCodeNotification($code));
         } catch (Throwable $exception) {
-            $this->forget($email);
+            report($exception);
 
-            throw $exception;
+            return $code;
         }
+
+        return null;
     }
 
     public function verify(string $email, string $code): User

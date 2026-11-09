@@ -20,6 +20,7 @@ type Step = 'email' | 'code' | 'password';
 
 const props = defineProps<{
     status?: string;
+    resetCode?: string | null;
     email?: string | null;
     step: Step;
     codeExpiresInMinutes: number;
@@ -181,6 +182,17 @@ function startOver() {
                         class="mb-4 rounded-xl bg-emerald-50 px-3 py-2 text-center text-sm font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
                     >
                         {{ status }}
+                    </div>
+                    <div
+                        v-if="resetCode"
+                        class="mb-4 rounded-xl bg-amber-50 px-3 py-3 text-center dark:bg-amber-500/15"
+                    >
+                        <p class="text-xs font-medium text-amber-800 dark:text-amber-200">
+                            Reset code
+                        </p>
+                        <p class="mt-1 font-mono text-2xl font-bold tracking-[0.3em] text-amber-950 dark:text-amber-100">
+                            {{ resetCode }}
+                        </p>
                     </div>
 
                     <form

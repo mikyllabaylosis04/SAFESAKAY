@@ -115,6 +115,7 @@ class FortifyServiceProvider extends ServiceProvider
 
             return Inertia::render('auth/ForgotPassword', [
                 'status' => $request->session()->get('status'),
+                'resetCode' => $request->session()->get('reset_code'),
                 'email' => $state['email'] ?? null,
                 'step' => match (true) {
                     $state === null => 'email',

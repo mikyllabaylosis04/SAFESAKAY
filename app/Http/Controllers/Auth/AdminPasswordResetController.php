@@ -11,7 +11,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
-use Throwable;
 
 class AdminPasswordResetController extends Controller
 {
@@ -70,21 +69,19 @@ class AdminPasswordResetController extends Controller
             ]);
         }
 
-        try {
-            $this->codes->send($user);
-        } catch (Throwable $exception) {
-            report($exception);
-
-            throw ValidationException::withMessages([
-                'email' => 'We could not send the code right now. Check the mail settings and try again.',
-            ]);
-        }
+        $fallbackCode = $this->codes->send($user);
 
         $request->session()->put(self::SESSION_KEY, [
             'email' => $email,
             'verified' => false,
             'sent_at' => now()->timestamp,
         ]);
+
+        if ($fallbackCode !== null) {
+            return to_route('password.request')
+                ->with('status', 'Email could not be sent from this server. Use the code shown below. It expires in 15 minutes.')
+                ->with('reset_code', $fallbackCode);
+        }
 
         return to_route('password.request')
             ->with('status', "We sent a 6-digit code to {$user->email}. Check your inbox and Spam folder.");
