@@ -846,7 +846,27 @@ function passengerPercent(trip: RegularTripRecord) {
 // ==========================================
 
 function isNextInRotation(trip: RegularTripRecord) {
-    return Boolean(trip.can_depart) && Number(trip.queue_position || 0) === 1;
+    if (!trip.is_outbound || (trip.status !== 'scheduled' && trip.status !== 'delayed')) {
+        return false;
+    }
+
+    const siblings = props.trips.filter(
+        (item) =>
+            item.is_outbound &&
+            item.trip_date === trip.trip_date &&
+            item.route === trip.route &&
+            (item.status === 'scheduled' || item.status === 'delayed'),
+    );
+
+    const first = [...siblings].sort((a, b) => {
+        const order =
+            Number(a.queue_order || a.rotation_order || 999) -
+            Number(b.queue_order || b.rotation_order || 999);
+
+        return order !== 0 ? order : a.id - b.id;
+    })[0];
+
+    return first?.id === trip.id;
 }
 
 function goingStatus(trip: RegularTripRecord) {
