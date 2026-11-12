@@ -1901,7 +1901,7 @@ function deleteTrip() {
                     finished one round trip
                     ({{ completingTrip.passenger_count }} passengers).
                     Continue rotation sends the boat to the last
-                    position. End duty takes it out of the queue.
+                    position. End duty keeps the boat on the list as Completed.
                 </p>
 
                 <div
@@ -1938,7 +1938,7 @@ function deleteTrip() {
                             )
                         "
                     >
-                        Off Duty
+                        End Duty
                     </Button>
 
                     <Button

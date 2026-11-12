@@ -1242,7 +1242,7 @@ function deletePassenger() {
                     type="button"
                     class="rounded-xl bg-rose-600 text-white hover:bg-rose-700"
                     :disabled="statusProcessing"
-                    @click="updateStatus('off_duty')"
+                    @click="updateStatus('off_duty', { duty_note: 'completed_today' })"
                 >
                     End Duty
                 </Button>

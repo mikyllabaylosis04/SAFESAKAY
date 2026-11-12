@@ -914,7 +914,9 @@ class RegularTripRotationService
             ->first(fn (RegularTrip $item) => $item->isOutbound());
 
         if ($existing) {
-            return $existing;
+            $existing->update(['remarks' => 'completed_today']);
+
+            return $existing->fresh();
         }
 
         $offDuty = RegularTrip::query()->withoutGlobalScope('organization')->create([
@@ -930,13 +932,13 @@ class RegularTripRotationService
             'departure_time' => Carbon::parse($completed->departure_time)->format('H:i'),
             'passenger_count' => 0,
             'status' => RegularTripStatus::OffDuty,
-            'remarks' => 'off_duty',
+            'remarks' => 'completed_today',
             'is_auto_generated' => false,
         ]);
 
         $this->ensureReturnTrip($offDuty)?->update([
             'status' => RegularTripStatus::OffDuty,
-            'remarks' => 'off_duty',
+            'remarks' => 'completed_today',
         ]);
 
         return $offDuty;
