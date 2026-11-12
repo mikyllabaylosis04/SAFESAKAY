@@ -11,6 +11,7 @@ use App\Http\Requests\StoreBoatBookingRequest;
 use App\Models\Boat;
 use App\Models\BoatBooking;
 use App\Models\OrganizationRoute;
+use App\Services\BoatStatusSyncService;
 use App\Services\ExpirePendingRentalBookingsService;
 use App\Services\RentalCommissionService;
 use App\Services\RentalCompletionService;
@@ -42,8 +43,10 @@ class BoatBookingController extends Controller
         'Sunset cruise',
     ];
 
-    public function index(): Response
+    public function index(BoatStatusSyncService $boatStatus): Response
     {
+        $boatStatus->syncOrganization(auth()->user()?->organization_id);
+
         $today = now('Asia/Manila')->toDateString();
         $boardStatuses = array_map(
             fn (BoatBookingStatus $status) => $status->value,

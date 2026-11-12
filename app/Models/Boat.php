@@ -234,7 +234,7 @@ class Boat extends Model
 
         $date = $onDate ? Carbon::parse($onDate)->toDateString() : now()->toDateString();
 
-        if ($this->status === BoatStatus::OnTrip && $date === now('Asia/Manila')->toDateString()) {
+        if ($this->hasRegularTripOnTrip($date)) {
             return false;
         }
 
@@ -339,10 +339,6 @@ class Boat extends Model
     {
         $onDate = Carbon::parse($date)->toDateString();
         $slot = $time ? Carbon::parse($time)->format('H:i') : null;
-
-        if ($this->status === BoatStatus::OnTrip && $onDate === now('Asia/Manila')->toDateString()) {
-            return 'This boat is already on a regular trip and cannot take a rental today.';
-        }
 
         if ($this->hasRegularTripOnTrip($onDate)) {
             return 'This boat is already on a regular trip and cannot take a rental today.';

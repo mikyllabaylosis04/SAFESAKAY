@@ -304,6 +304,36 @@ class DualServiceBoatTest extends TestCase
             ->assertSessionHasErrors();
     }
 
+    public function test_a_completed_rental_leaves_the_boat_open_for_another_booking(): void
+    {
+        $admin = User::factory()->create();
+        $boat = $this->bothServiceBoat($admin);
+        $this->scheduleToday($admin, $boat);
+        $boat->update(['status' => BoatStatus::OnTrip]);
+
+        BoatBooking::query()->create([
+            'organization_id' => $admin->organization_id,
+            'boat_id' => $boat->id,
+            'code' => 'BR-2026-00901',
+            'customer_name' => 'caicai',
+            'package' => 'Daku Island',
+            'destination' => 'Daku Island',
+            'booking_date' => '2026-09-19',
+            'start_time' => '17:05',
+            'passenger_count' => 15,
+            'status' => BoatBookingStatus::Completed,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('schedules.boat-booking-schedule'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('availableBoats.0.availability_label', 'On duty — open for booking')
+                ->where('availableBoats.0.is_open_for_booking', true));
+
+        $this->assertNotSame(BoatStatus::OnTrip, $boat->fresh()->status);
+    }
+
     public function test_on_trip_boat_stays_listed_for_private_rental_and_can_be_booked_on_another_day(): void
     {
         $admin = User::factory()->create();

@@ -63,7 +63,7 @@ class BoatStatusSyncService
 
     private function derivedStatus(Boat $boat): BoatStatus
     {
-        $today = now()->toDateString();
+        $today = now('Asia/Manila')->toDateString();
 
         $trips = RegularTrip::query()
             ->withoutGlobalScope('organization')
@@ -72,29 +72,6 @@ class BoatStatusSyncService
             ->get();
 
         if ($trips->contains(fn (RegularTrip $trip) => $trip->status === RegularTripStatus::OnTrip)) {
-            return BoatStatus::OnTrip;
-        }
-
-        $cycleInProgress = $trips->contains(function (RegularTrip $trip) use ($trips) {
-            if (! $trip->isOutbound() || $trip->status !== RegularTripStatus::Completed) {
-                return false;
-            }
-
-            $return = $trips->first(function (RegularTrip $item) use ($trip) {
-                if ((int) $item->return_of_id === (int) $trip->id) {
-                    return true;
-                }
-
-                return ! $item->isOutbound()
-                    && (int) $item->boat_id === (int) $trip->boat_id
-                    && $item->status !== RegularTripStatus::Completed
-                    && $item->status !== RegularTripStatus::Cancelled;
-            });
-
-            return $return !== null && $return->status !== RegularTripStatus::Completed;
-        });
-
-        if ($cycleInProgress) {
             return BoatStatus::OnTrip;
         }
 
