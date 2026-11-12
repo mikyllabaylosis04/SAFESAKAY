@@ -923,16 +923,32 @@ function hasDeparted(trip: RegularTripRecord) {
     );
 }
 
+function isClosedDuty(trip: RegularTripRecord) {
+    return (
+        trip.status === 'completed' ||
+        trip.status === 'off_duty' ||
+        trip.remarks === 'completed_today'
+    );
+}
+
 function canAddPassenger(trip: RegularTripRecord) {
-    if (!trip.can_encode_passengers || trip.at_capacity) {
+    if (
+        isClosedDuty(trip) ||
+        trip.status === 'on_trip' ||
+        !trip.can_encode_passengers ||
+        trip.at_capacity
+    ) {
         return false;
     }
 
     if (!trip.is_outbound) {
-        return true;
+        return Boolean(trip.can_complete_return);
     }
 
-    return isNextInRotation(trip);
+    return (
+        isNextInRotation(trip) &&
+        Number(trip.passenger_count || 0) === 0
+    );
 }
 
 function canDepartNow(trip: RegularTripRecord) {
@@ -955,16 +971,21 @@ function canCompleteNow(trip: RegularTripRecord) {
 }
 
 function rowStatus(trip: RegularTripRecord) {
-    if (
-        !trip.is_outbound &&
-        trip.status !== 'completed' &&
-        trip.status !== 'off_duty' &&
-        trip.status !== 'on_trip' &&
-        Boolean(trip.can_complete_return)
-    ) {
+    if (trip.status === 'on_trip' || trip.can_arrive_origin) {
         return {
             label: 'On Trip',
             class: 'bg-blue-100 text-blue-700',
+        };
+    }
+
+    if (
+        !trip.is_outbound &&
+        !isClosedDuty(trip) &&
+        Boolean(trip.can_complete_return)
+    ) {
+        return {
+            label: 'Boarding',
+            class: 'bg-amber-100 text-amber-800',
         };
     }
 

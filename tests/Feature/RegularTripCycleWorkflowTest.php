@@ -121,7 +121,7 @@ class RegularTripCycleWorkflowTest extends TestCase
         $this->assertSame('Not Recorded', $going->fresh()->actualArrivalLabel());
         $this->assertSame('Not Recorded', $return->actualDepartureLabel());
         $this->assertSame(RegularTripStatus::Scheduled, $return->status);
-        $this->assertSame('On Trip', $return->workflowStatusLabel());
+        $this->assertSame('Boarding', $return->workflowStatusLabel());
         $this->assertSame(RegularTripStatus::Completed, $going->fresh()->status);
     }
 

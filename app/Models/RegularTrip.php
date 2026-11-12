@@ -358,8 +358,8 @@ class RegularTrip extends Model
             return 'On Trip';
         }
 
-        if (! $this->isOutbound() && $this->arrived_at !== null) {
-            return 'On Trip';
+        if (! $this->isOutbound() && $this->arrived_at !== null && $this->departed_at === null) {
+            return 'Boarding';
         }
 
         return 'Waiting';
@@ -389,7 +389,7 @@ class RegularTrip extends Model
 
     public function canEncodePassengers(): bool
     {
-        if ($this->status === RegularTripStatus::Cancelled || $this->status === RegularTripStatus::Completed) {
+        if ($this->status === RegularTripStatus::Cancelled || $this->status === RegularTripStatus::Completed || $this->status === RegularTripStatus::OffDuty || $this->remarks === 'completed_today') {
             return false;
         }
 

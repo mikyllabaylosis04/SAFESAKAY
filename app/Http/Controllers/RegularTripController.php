@@ -465,7 +465,13 @@ class RegularTripController extends Controller
             'can_arrive_origin' => $trip->isOutbound() && $trip->status === RegularTripStatus::OnTrip,
             'can_complete_return' => ! $trip->isOutbound()
                 && $trip->arrived_at !== null
-                && $trip->status !== RegularTripStatus::Completed,
+                && $trip->departed_at === null
+                && ! in_array($trip->status, [
+                    RegularTripStatus::Completed,
+                    RegularTripStatus::OffDuty,
+                    RegularTripStatus::Cancelled,
+                ], true)
+                && $trip->remarks !== 'completed_today',
             'can_depart_return' => $trip->canDepartReturn(),
             'can_encode_passengers' => $trip->canEncodePassengers(),
             'remaining_seats' => max(0, $capacity - $passengerCount),
