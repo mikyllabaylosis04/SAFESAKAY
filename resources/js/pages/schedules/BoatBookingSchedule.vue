@@ -16,7 +16,6 @@ import { computed, nextTick, ref } from 'vue';
 import StatCards from '@/components/admin/StatCards.vue';
 import type { StatCardItem } from '@/components/admin/StatCards.vue';
 import WeatherAlertBanner from '@/components/admin/WeatherAlertBanner.vue';
-import ScheduledTripConfirmationModal from '@/components/ScheduledTripConfirmationModal.vue';
 import ViewBoatBookingModal from '@/components/ViewBoatBookingModal.vue';
 import ViewBookingBoatModal from '@/components/ViewBookingBoatModal.vue';
 import type {
@@ -87,10 +86,8 @@ type CardFilter = 'assigned' | 'open' | 'upcoming';
 
 const boatViewOpen = ref(false);
 const bookingViewOpen = ref(false);
-const tripConfirmationOpen = ref(false);
 const selectedBoat = ref<BookingBoatRecord | null>(null);
 const selectedBooking = ref<BoatBookingRecord | null>(null);
-const tripConfirmationBooking = ref<BoatBookingRecord | null>(null);
 const filter = ref<CardFilter>('assigned');
 const boatsSection = ref<HTMLElement | null>(null);
 const bookingsSection = ref<HTMLElement | null>(null);
@@ -122,11 +119,6 @@ const boatsHint = computed(() =>
           } guests can choose today`
         : 'Boats assigned for private rental. Open boats are the ones guests can choose.',
 );
-
-function openTripConfirmation(booking: BoatBookingRecord) {
-    tripConfirmationBooking.value = booking;
-    tripConfirmationOpen.value = true;
-}
 
 async function selectCard(key: CardFilter) {
     filter.value = key;
@@ -425,7 +417,7 @@ function openBookingView(booking: BoatBookingRecord) {
                     upcoming
                     · {{ stats.passengers }}
                     {{ stats.passengers === 1 ? 'passenger' : 'passengers' }}
-                    today · Manage: Option 1 app request, Option 2 phone call
+                    today
                 </p>
             </div>
 
@@ -517,14 +509,6 @@ function openBookingView(booking: BoatBookingRecord) {
                                     >
                                         <Eye class="size-3.5" />
                                         View
-                                    </button>
-                                    <button
-                                        v-if="booking.show_trip_manage"
-                                        type="button"
-                                        class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#1479E8] bg-[#1479E8] px-2.5 text-xs font-semibold text-white transition hover:bg-[#1268c9]"
-                                        @click="openTripConfirmation(booking)"
-                                    >
-                                        Manage
                                     </button>
                                 </div>
                             </td>
@@ -873,9 +857,5 @@ function openBookingView(booking: BoatBookingRecord) {
         v-model:open="bookingViewOpen"
         :booking="selectedBooking"
         :show-edit="false"
-    />
-    <ScheduledTripConfirmationModal
-        v-model:open="tripConfirmationOpen"
-        :booking="tripConfirmationBooking"
     />
 </template>
