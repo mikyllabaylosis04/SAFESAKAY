@@ -240,8 +240,61 @@ class RentalRefundService
         return $refund;
     }
 
+    /**
+     * A reversed passenger no-show is not a reschedule. Admin already accepted the dispute;
+     * the refund stays pending until admin processes it. The amount is whatever was paid:
+     * downpayment only, or the full payment when that was paid.
+     */
+    public function openReversedPassengerNoShowRefund(BoatBooking $booking, User $admin): ?RentalRefundRequest
+    {
+        $amount = $this->paidTotal($booking);
+
+        if ($amount <= 0) {
+            return null;
+        }
+
+        $latest = $this->latestRequest($booking);
+        if ($latest && ! $latest->isClosed()) {
+            return $this->moveReversedNoShowToAdminReview($latest, $booking);
+        }
+
+        $refund = $this->create(
+            $booking,
+            $admin,
+            RentalRefundRequest::TYPE_ADMIN_CANCELLED,
+            RentalRefundRequest::STATUS_PENDING_REVIEW,
+            $amount,
+        );
+        $refund->recordEvent('requested', 'Refund waiting for admin to process', 'Only the amount the passenger paid is refunded. There is no reschedule.', $admin);
+        $this->notify($booking, $refund, 'requested');
+
+        return $refund->fresh();
+    }
+
+    /** Older reversed no-shows were left waiting for a passenger choice. Move those to admin processing. */
+    public function promoteReversedPassengerNoShowRefunds(?int $organizationId = null): void
+    {
+        RentalRefundRequest::query()
+            ->with('booking')
+            ->when($organizationId, fn ($query) => $query->where('organization_id', $organizationId))
+            ->where('status', RentalRefundRequest::STATUS_AWAITING_CHOICE)
+            ->whereHas('booking', fn ($query) => $query->where('cancellation_reason', 'Passenger no-show reversed by barangay'))
+            ->orderBy('id')
+            ->limit(50)
+            ->get()
+            ->each(function (RentalRefundRequest $refund): void {
+                if ($refund->booking) {
+                    $this->moveReversedNoShowToAdminReview($refund, $refund->booking);
+                }
+            });
+    }
+
     public function canChoose(BoatBooking $booking, ?User $user): bool
     {
+        if ($booking->cancellation_reason === 'Passenger no-show reversed by barangay') {
+            return false;
+        }
+
         $latest = $this->latestRequest($booking);
 
         return $user !== null
@@ -559,6 +612,7 @@ class RentalRefundService
      */
     public function mobilePayload(BoatBooking $booking, ?User $viewer): array
     {
+        $this->promoteReversedPassengerNoShowRefunds((int) $booking->organization_id);
         $refund = $this->latestRequest($booking);
         $isPassenger = $viewer && ! $viewer->isMobileOperator();
         $cancelRefund = $this->passengerCancellationRefund($booking);
@@ -586,6 +640,24 @@ class RentalRefundService
                 'refunded_at_label' => $this->label($refund->refunded_at),
             ] : null,
         ];
+    }
+
+    private function moveReversedNoShowToAdminReview(RentalRefundRequest $refund, BoatBooking $booking): RentalRefundRequest
+    {
+        $amount = $this->paidTotal($booking);
+
+        if ($refund->status === RentalRefundRequest::STATUS_PENDING_REVIEW && (int) $refund->requested_amount === $amount) {
+            return $refund;
+        }
+
+        $refund->update([
+            'status' => RentalRefundRequest::STATUS_PENDING_REVIEW,
+            'requested_amount' => $amount,
+            'refund_amount' => $amount,
+            'amount_paid' => $amount,
+        ]);
+
+        return $refund->fresh();
     }
 
     private function create(BoatBooking $booking, ?User $actor, string $type, string $status, int $amount): RentalRefundRequest

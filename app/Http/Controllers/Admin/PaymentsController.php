@@ -21,6 +21,7 @@ class PaymentsController extends Controller
 
         $rows = $finance->paymentRows($organizationId);
         $refunds = app(RentalRefundService::class);
+        $refunds->promoteReversedPassengerNoShowRefunds($organizationId);
 
         // Local servers never receive Xendit's refund webhook, so ask Xendit directly.
         RentalRefundRequest::query()

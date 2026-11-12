@@ -416,8 +416,51 @@ class NoShowManagementTest extends TestCase
         $this->assertDatabaseHas('rental_refund_requests', [
             'boat_booking_id' => $booking->id,
             'type' => RentalRefundRequest::TYPE_ADMIN_CANCELLED,
+            'status' => RentalRefundRequest::STATUS_PENDING_REVIEW,
+            'refund_amount' => 90000,
+            'requested_amount' => 90000,
         ]);
+        $this->actingAs($this->passenger, 'sanctum')
+            ->getJson("/api/bookings/{$booking->id}")
+            ->assertOk()
+            ->assertJsonPath('data.can_choose_refund_or_reschedule', false)
+            ->assertJsonPath('data.refund_request.status', RentalRefundRequest::STATUS_PENDING_REVIEW)
+            ->assertJsonPath('data.refund_request.requested_amount_label', '₱900.00');
         Notification::assertSentTo($this->passenger, PassengerNoShowNotification::class);
+    }
+
+    public function test_reversed_no_show_refunds_the_full_payment_when_that_was_paid(): void
+    {
+        $this->freezeManila('2026-10-15 09:20:00');
+        $booking = $this->booking(paid: true);
+        RentalPayment::query()->create([
+            'organization_id' => $booking->organization_id,
+            'boat_booking_id' => $booking->id,
+            'provider' => 'xendit',
+            'payment_type' => 'full_payment',
+            'amount' => 360000,
+            'currency' => 'PHP',
+            'status' => 'paid',
+            'checkout_session_id' => 'pr-full-'.$booking->id,
+            'provider_payment_id' => 'py-full-'.$booking->id,
+            'paid_at' => now(),
+        ]);
+        $this->operatorReady($booking);
+        $this->reportPassengerNoShow($booking);
+        $report = PassengerNoShowReport::query()->firstOrFail();
+
+        $this->actingAs($this->admin)
+            ->patch(route('bookings.passenger-no-show-reports.resolve', $report), [
+                'decision' => 'reverse',
+                'admin_notes' => 'The operator was not at the port.',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('rental_refund_requests', [
+            'boat_booking_id' => $booking->id,
+            'status' => RentalRefundRequest::STATUS_PENDING_REVIEW,
+            'refund_amount' => 450000,
+        ]);
     }
 
     public function test_admin_resolve_requires_notes_and_stays_in_organization(): void

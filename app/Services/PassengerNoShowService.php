@@ -366,7 +366,7 @@ class PassengerNoShowService
             $booking->recordActivity('passenger_no_show_reversed', $admin, $admin->name, ['note' => $notes]);
         });
 
-        app(RentalRefundService::class)->openForCancellation($booking->fresh(), $admin, RentalRefundRequest::TYPE_ADMIN_CANCELLED);
+        app(RentalRefundService::class)->openReversedPassengerNoShowRefund($booking->fresh(), $admin);
 
         $this->safeNotify($booking->user, new PassengerNoShowNotification($booking, 'reversed_passenger', $notes));
         $this->safeNotify($booking->boat?->operator?->user, new PassengerNoShowNotification($booking, 'reversed_operator', $notes));
