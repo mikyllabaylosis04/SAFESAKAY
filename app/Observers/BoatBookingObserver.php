@@ -49,6 +49,7 @@ class BoatBookingObserver
     {
         if ($booking->wasChanged('status') || $booking->wasChanged('booking_date') || $booking->wasChanged('boat_id')) {
             $this->releaseRegularTrips($booking);
+            $this->restoreRegularTrips($booking);
             $this->syncBoat($booking);
         }
 
@@ -198,6 +199,28 @@ class BoatBookingObserver
             $boat,
             $booking->booking_date->toDateString(),
         );
+    }
+
+    private function restoreRegularTrips(BoatBooking $booking): void
+    {
+        if (! in_array($booking->status, [
+            BoatBookingStatus::Completed,
+            BoatBookingStatus::Cancelled,
+            BoatBookingStatus::Rejected,
+            BoatBookingStatus::PassengerNoShow,
+        ], true)) {
+            return;
+        }
+
+        $boat = $booking->boat ?? Boat::query()
+            ->withoutGlobalScope('organization')
+            ->find($booking->boat_id);
+
+        if (! $boat instanceof Boat || $boat->organization_id === null) {
+            return;
+        }
+
+        app(RegularTripRotationService::class)->restoreFinishedPrivateBookingTrips((int) $boat->organization_id);
     }
 
     private function syncBoat(BoatBooking $booking): void

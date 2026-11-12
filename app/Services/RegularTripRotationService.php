@@ -1073,6 +1073,64 @@ class RegularTripRotationService
         return $trips->count();
     }
 
+    /**
+     * A finished, cancelled, or rejected rental puts the boat back on the regular trip schedule.
+     */
+    public function restoreFinishedPrivateBookingTrips(?int $organizationId = null): int
+    {
+        $trips = RegularTrip::query()
+            ->withoutGlobalScope('organization')
+            ->with(['boat' => fn ($query) => $query->withoutGlobalScope('organization')])
+            ->when($organizationId, fn ($query) => $query->where('organization_id', $organizationId))
+            ->where('status', RegularTripStatus::Cancelled)
+            ->where('remarks', 'Skipped — private booking scheduled.')
+            ->whereDate('trip_date', '>=', now()->toDateString())
+            ->get()
+            ->filter(fn (RegularTrip $trip) => $trip->isOutbound())
+            ->filter(fn (RegularTrip $trip) => $trip->boat instanceof Boat
+                && ! $trip->boat->hasRentalBlockingRegularTripOn($trip->trip_date));
+
+        $restored = 0;
+
+        foreach ($trips as $trip) {
+            $restored += $this->restoreSkippedPrivateBookingTrip($trip);
+        }
+
+        return $restored;
+    }
+
+    private function restoreSkippedPrivateBookingTrip(RegularTrip $trip): int
+    {
+        if (! $trip->isOutbound() || $trip->status !== RegularTripStatus::Cancelled) {
+            return 0;
+        }
+
+        if ($trip->remarks !== 'Skipped — private booking scheduled.') {
+            return 0;
+        }
+
+        $trip->update([
+            'status' => RegularTripStatus::Scheduled,
+            'remarks' => null,
+            'queue_order' => $this->nextWaitingOrder($trip),
+        ]);
+
+        RegularTrip::query()
+            ->withoutGlobalScope('organization')
+            ->where('return_of_id', $trip->id)
+            ->where('status', RegularTripStatus::Cancelled)
+            ->where('remarks', 'Skipped — private booking scheduled.')
+            ->update([
+                'status' => RegularTripStatus::Scheduled,
+                'remarks' => null,
+            ]);
+
+        $this->ensureReturnTrip($trip->fresh());
+        $this->compactWaitingQueue($trip->fresh());
+
+        return 1;
+    }
+
     public function syncReturnTrip(RegularTrip $trip): ?RegularTrip
     {
         $trip->loadMissing('boat');

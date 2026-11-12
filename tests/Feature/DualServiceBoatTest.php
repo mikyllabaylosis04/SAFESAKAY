@@ -89,6 +89,15 @@ class DualServiceBoatTest extends TestCase
 
         $this->assertSame(RegularTripStatus::Scheduled, $trip->fresh()->status);
         $this->assertSame(BoatStatus::OnDuty, $boat->fresh()->status);
+
+        $this->actingAs($admin)
+            ->get(route('schedules.regular-trip-rotation'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('trips', fn ($trips) => collect($trips)
+                    ->where('trip_date', '2026-09-19')
+                    ->where('boat.id', $boat->id)
+                    ->isEmpty()));
     }
 
     public function test_operator_approve_cancels_the_regular_trip_for_that_day(): void
@@ -123,6 +132,77 @@ class DualServiceBoatTest extends TestCase
 
         $this->assertSame(RegularTripStatus::Cancelled, $trip->fresh()->status);
         $this->assertSame(BoatStatus::OnDuty, $boat->fresh()->status);
+    }
+
+    public function test_completed_rental_returns_the_boat_to_the_regular_trip_schedule(): void
+    {
+        $admin = User::factory()->create();
+        $boat = $this->bothServiceBoat($admin);
+        $trip = $this->scheduleToday($admin, $boat);
+
+        $this->actingAs($admin)
+            ->post(route('boat-bookings.store'), $this->bookingPayload($boat, BoatBookingStatus::Confirmed))
+            ->assertRedirect(route('schedules.boat-booking-schedule'));
+
+        $booking = BoatBooking::query()->where('boat_id', $boat->id)->firstOrFail();
+        $booking->update(['status' => BoatBookingStatus::Completed]);
+
+        $this->assertSame(RegularTripStatus::Scheduled, $trip->fresh()->status);
+        $this->assertNull($trip->fresh()->remarks);
+
+        $this->actingAs($admin)
+            ->get(route('schedules.regular-trip-rotation'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('trips', fn ($trips) => collect($trips)
+                    ->where('trip_date', '2026-09-19')
+                    ->contains(fn ($row) => (int) data_get($row, 'boat.id') === (int) $boat->id)));
+    }
+
+    public function test_active_rental_hides_an_off_duty_boat_until_the_rental_is_completed(): void
+    {
+        $admin = User::factory()->create();
+        $boat = $this->bothServiceBoat($admin);
+        $trip = $this->scheduleToday($admin, $boat);
+        $trip->update([
+            'status' => RegularTripStatus::OffDuty,
+            'remarks' => 'off_duty',
+        ]);
+
+        $booking = BoatBooking::query()->create([
+            'organization_id' => $admin->organization_id,
+            'boat_id' => $boat->id,
+            'code' => 'BR-2026-00111',
+            'customer_name' => 'Guest',
+            'package' => 'Cloud 9',
+            'destination' => 'Cloud 9',
+            'booking_date' => '2026-09-19',
+            'start_time' => '11:00',
+            'passenger_count' => 4,
+            'status' => BoatBookingStatus::Confirmed,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('schedules.regular-trip-rotation'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('trips', fn ($trips) => collect($trips)
+                    ->where('trip_date', '2026-09-19')
+                    ->where('boat.id', $boat->id)
+                    ->isEmpty()));
+
+        $booking->update(['status' => BoatBookingStatus::Completed]);
+
+        $this->actingAs($admin)
+            ->get(route('schedules.regular-trip-rotation'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('trips', fn ($trips) => collect($trips)
+                    ->where('trip_date', '2026-09-19')
+                    ->contains(
+                        fn ($row) => (int) data_get($row, 'boat.id') === (int) $boat->id
+                            && data_get($row, 'status') === 'off_duty',
+                    )));
     }
 
     public function test_cannot_assign_a_regular_trip_when_the_boat_has_a_confirmed_booking(): void

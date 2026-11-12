@@ -37,6 +37,7 @@ class RegularTripController extends Controller
             $rotation->compactOpenWaitingQueues($organizationId);
             $rotation->ensureReturnsForDay($organizationId);
             $rotation->refreshBoardingForDay($organizationId);
+            $rotation->restoreFinishedPrivateBookingTrips($organizationId);
         }
 
         $trips = RegularTrip::query()
@@ -45,7 +46,9 @@ class RegularTripController extends Controller
             ->orderBy('trip_date')
             ->orderBy('rotation_order')
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->reject(fn (RegularTrip $trip) => $trip->boat?->hasRentalBlockingRegularTripOn($trip->trip_date) === true)
+            ->values();
 
         $payload = $this->decorateLineup($trips);
 

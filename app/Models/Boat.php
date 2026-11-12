@@ -243,15 +243,34 @@ class Boat extends Model
 
     public function hasCommittedPrivateBookingOn(Carbon|string $date, ?int $exceptBookingId = null): bool
     {
+        return $this->hasRentalBlockingRegularTripOn($date, $exceptBookingId, committedOnly: true);
+    }
+
+    /**
+     * A rental request or confirmed rental for this day keeps the boat off the regular trip schedule.
+     */
+    public function hasRentalBlockingRegularTripOn(Carbon|string $date, ?int $exceptBookingId = null, bool $committedOnly = false): bool
+    {
+        $statuses = $committedOnly
+            ? [
+                BoatBookingStatus::AwaitingPayment,
+                BoatBookingStatus::Confirmed,
+                BoatBookingStatus::Ongoing,
+            ]
+            : [
+                BoatBookingStatus::Pending,
+                BoatBookingStatus::AwaitingPayment,
+                BoatBookingStatus::Confirmed,
+                BoatBookingStatus::Ongoing,
+                BoatBookingStatus::WeatherHold,
+                BoatBookingStatus::ReschedulePending,
+            ];
+
         return BoatBooking::query()
             ->withoutGlobalScope('organization')
             ->where('boat_id', $this->id)
             ->whereDate('booking_date', Carbon::parse($date)->toDateString())
-            ->whereIn('status', [
-                BoatBookingStatus::AwaitingPayment,
-                BoatBookingStatus::Confirmed,
-                BoatBookingStatus::Ongoing,
-            ])
+            ->whereIn('status', $statuses)
             ->when($exceptBookingId, fn ($query) => $query->whereKeyNot($exceptBookingId))
             ->exists();
     }
