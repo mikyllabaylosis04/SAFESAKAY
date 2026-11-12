@@ -12,6 +12,7 @@ use App\Models\OrganizationRoute;
 use App\Models\RegularTrip;
 use App\Models\TripPassenger;
 use App\Services\RegularTripRotationService;
+use App\Services\WeatherSuspensionService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -457,10 +458,7 @@ class RegularTripController extends Controller
             'cycle_number' => $trip->cycleNumber(),
             'trip_number_label' => $trip->tripNumberLabel(),
             'return_of_id' => $trip->return_of_id,
-            'can_depart' => $trip->isOutbound()
-                && $trip->status->isWaiting()
-                && ! $trip->weather_review_required
-                && $trip->weather_suspension_id === null,
+            'can_depart' => $this->canDepartRegularTrip($trip),
             'weather_review_required' => (bool) $trip->weather_review_required,
             'weather_suspension_id' => $trip->weather_suspension_id,
             'can_arrive_destination' => false,
@@ -695,5 +693,19 @@ class RegularTripController extends Controller
             'picture_url' => $boat->pictureUrl(),
             'operator_name' => $boat->operator?->full_name,
         ];
+    }
+
+    private function canDepartRegularTrip(RegularTrip $trip): bool
+    {
+        if (! $trip->isOutbound() || ! $trip->status->isWaiting()) {
+            return false;
+        }
+
+        return app(WeatherSuspensionService::class)->departureBlockMessage(
+            (int) $trip->organization_id,
+            $trip->trip_date->toDateString(),
+            $trip->direction ?: $trip->route,
+            $trip->hasScheduledTime() ? Carbon::parse($trip->departure_time)->format('H:i') : null,
+        ) === null;
     }
 }

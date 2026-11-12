@@ -108,6 +108,14 @@ class WeatherSuspensionService
             'lift_notes' => $notes,
         ]);
 
+        RegularTrip::query()
+            ->withoutGlobalScope('organization')
+            ->where('weather_suspension_id', $suspension->id)
+            ->update([
+                'weather_suspension_id' => null,
+                'weather_review_required' => false,
+            ]);
+
         $announcement = Announcement::query()->create([
             'organization_id' => $suspension->organization_id,
             'user_id' => $admin->id,

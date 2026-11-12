@@ -928,10 +928,6 @@ function canAddPassenger(trip: RegularTripRecord) {
         return false;
     }
 
-    if (Number(trip.passenger_count || 0) > 0) {
-        return false;
-    }
-
     if (!trip.is_outbound) {
         return true;
     }

@@ -105,6 +105,46 @@ class WeatherSuspensionTest extends TestCase
                 ->where('weatherHoldDates.1.can_book', false));
     }
 
+    public function test_a_lifted_suspension_lets_the_boarding_boat_depart_again(): void
+    {
+        [$admin] = $this->seedRentals();
+        $going = $this->goingTrip($admin, RegularTripStatus::Scheduled);
+
+        $this->actingAs($admin)
+            ->post(route('weather-suspensions.store'), $this->payload())
+            ->assertRedirect();
+
+        $this->actingAs($admin)
+            ->get(route('schedules.regular-trip-rotation'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where(
+                'trips',
+                fn ($trips) => collect($trips)->contains(
+                    fn ($row) => (int) data_get($row, 'id') === (int) $going->id
+                        && data_get($row, 'can_depart') === false,
+                ),
+            ));
+
+        $suspension = WeatherSuspension::query()->firstOrFail();
+
+        $this->actingAs($admin)
+            ->patch(route('weather-suspensions.lift', $suspension))
+            ->assertRedirect();
+
+        $this->assertNull($going->fresh()->weather_suspension_id);
+
+        $this->actingAs($admin)
+            ->get(route('schedules.regular-trip-rotation'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where(
+                'trips',
+                fn ($trips) => collect($trips)->contains(
+                    fn ($row) => (int) data_get($row, 'id') === (int) $going->id
+                        && data_get($row, 'can_depart') === true,
+                ),
+            ));
+    }
+
     public function test_watch_day_blocks_new_bookings_then_turns_red_if_hold_is_not_lifted(): void
     {
         [$admin, , , $passenger, , $boat] = $this->seedRentals();
