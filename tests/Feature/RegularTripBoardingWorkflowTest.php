@@ -198,6 +198,38 @@ class RegularTripBoardingWorkflowTest extends TestCase
         $this->assertSame('6:00 PM', $going->fresh()->actualDepartureLabel());
     }
 
+    public function test_boarding_starts_on_a_manila_morning_before_utc_changes_date(): void
+    {
+        Carbon::setTestNow('2026-10-13 23:30:00');
+
+        $admin = User::factory()->create();
+        $boat = Boat::factory()->create([
+            'organization_id' => $admin->organization_id,
+            'capacity' => 10,
+            'service_type' => 'regular_trip',
+        ]);
+        $trip = RegularTrip::query()->create([
+            'organization_id' => $admin->organization_id,
+            'boat_id' => $boat->id,
+            'route' => 'Lakandula ↔ Placer',
+            'direction' => 'Lakandula → Placer',
+            'rotation_order' => 1,
+            'cycle_number' => 1,
+            'trip_date' => '2026-10-14',
+            'departure_time' => '08:00',
+            'passenger_count' => 0,
+            'status' => RegularTripStatus::Scheduled,
+        ]);
+
+        $this->actingAs($admin)
+            ->postJson(route('regular-trips.boarding.start', $trip))
+            ->assertOk()
+            ->assertJsonPath('started', true)
+            ->assertJsonPath('started_at_label', '7:30 AM');
+
+        $this->assertNotNull($trip->fresh()->boarding_started_at);
+    }
+
     /**
      * @return array{0: User, 1: RegularTrip}
      */

@@ -136,7 +136,11 @@ watch(
             .then((data: { started_at_label?: string | null } | null) => {
                 if (data?.started_at_label) {
                     boardingLabel.value = data.started_at_label;
+
+                    return;
                 }
+
+                boardingStartSent = false;
             })
             .catch(() => {
                 boardingStartSent = false;

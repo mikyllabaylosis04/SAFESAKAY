@@ -487,7 +487,7 @@ class RegularTrip extends Model
 
         if ($this->isOutbound()) {
             return $this->status->isWaiting()
-                && $this->trip_date->toDateString() === now()->toDateString()
+                && $this->trip_date->toDateString() === now('Asia/Manila')->toDateString()
                 && $this->isFirstWaitingBoat();
         }
 
