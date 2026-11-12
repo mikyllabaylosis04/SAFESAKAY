@@ -316,6 +316,12 @@ function pickBoatRow(trips: RegularTripRecord[]) {
         return onTrip;
     }
 
+    const encodingReturn = active.find((trip) => trip.can_complete_return);
+
+    if (encodingReturn) {
+        return encodingReturn;
+    }
+
     const waiting = pool
         .filter((trip) => trip.status === 'scheduled' || trip.status === 'delayed')
         .sort(
@@ -953,16 +959,16 @@ function canCompleteNow(trip: RegularTripRecord) {
 }
 
 function rowStatus(trip: RegularTripRecord) {
-    if (trip.status === 'off_duty') {
-        return trip.remarks === 'completed_today'
-            ? { label: 'Completed', class: 'bg-emerald-100 text-emerald-700' }
-            : { label: 'Off Duty', class: 'bg-slate-100 text-slate-600' };
-    }
-
-    if (!trip.is_outbound) {
+    if (
+        !trip.is_outbound &&
+        trip.status !== 'completed' &&
+        trip.status !== 'off_duty' &&
+        trip.status !== 'on_trip' &&
+        Boolean(trip.can_complete_return)
+    ) {
         return {
-            label: 'At origin',
-            class: 'bg-sky-100 text-sky-800',
+            label: 'On Trip',
+            class: 'bg-blue-100 text-blue-700',
         };
     }
 

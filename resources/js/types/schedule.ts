@@ -158,6 +158,7 @@ export type TripPassengerRecord = {
 export type RegularTripHistoryItem = {
     id: number;
     trip_number: number;
+    leg_label?: string;
     date: string;
     date_label: string;
     departure_time_label: string | null;

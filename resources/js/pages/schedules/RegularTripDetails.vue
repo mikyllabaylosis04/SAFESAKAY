@@ -883,6 +883,12 @@ function deletePassenger() {
                         >
                             <td class="px-4 py-3 font-semibold text-[#0f4c8a] dark:text-sky-100">
                                 Trip {{ item.trip_number }}
+                                <span
+                                    v-if="item.leg_label"
+                                    class="mt-0.5 block text-xs font-medium text-ink-muted"
+                                >
+                                    {{ item.leg_label }}
+                                </span>
                             </td>
                             <td class="px-4 py-3">
                                 {{ recordedTime(item.boarding_started_at_label) }}

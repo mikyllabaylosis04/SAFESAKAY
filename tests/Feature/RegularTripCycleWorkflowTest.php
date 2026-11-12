@@ -121,7 +121,7 @@ class RegularTripCycleWorkflowTest extends TestCase
         $this->assertSame('Not Recorded', $going->fresh()->actualArrivalLabel());
         $this->assertSame('Not Recorded', $return->actualDepartureLabel());
         $this->assertSame(RegularTripStatus::Scheduled, $return->status);
-        $this->assertSame('Arrived at Origin', $return->workflowStatusLabel());
+        $this->assertSame('On Trip', $return->workflowStatusLabel());
         $this->assertSame(RegularTripStatus::Completed, $going->fresh()->status);
     }
 
@@ -362,6 +362,69 @@ class RegularTripCycleWorkflowTest extends TestCase
             ->patchJson("/api/trips/{$return->id}", ['action' => 'complete'])
             ->assertOk()
             ->assertJsonPath('data.status', 'completed');
+    }
+
+    public function test_done_keeps_the_return_passenger_list_and_requeues_the_boat(): void
+    {
+        [$admin, $going] = $this->firstTrip();
+
+        $this->actingAs($admin)
+            ->patch(route('regular-trips.status.update', $going), [
+                'status' => RegularTripStatus::OnTrip->value,
+            ]);
+
+        $this->actingAs($admin)
+            ->patch(route('regular-trips.status.update', $going), [
+                'status' => RegularTripStatus::OnTrip->value,
+                'action' => 'arrive',
+            ]);
+
+        $return = RegularTrip::query()->where('return_of_id', $going->id)->firstOrFail();
+
+        $this->actingAs($admin)
+            ->post(route('regular-trips.passengers.store', $return), [
+                'full_name' => 'Home Rider',
+                'age' => 22,
+                'gender' => 'Female',
+                'contact_number' => '09170000009',
+                'finish' => '1',
+            ])
+            ->assertRedirect(route('regular-trips.show', ['regularTrip' => $return, 'duty' => 1]));
+
+        $this->actingAs($admin)
+            ->patch(route('regular-trips.status.update', $return), [
+                'status' => RegularTripStatus::Completed->value,
+                'action' => 'complete',
+                'return_to_queue' => true,
+            ])
+            ->assertRedirect(route('schedules.regular-trip-rotation'));
+
+        $return->refresh();
+        $this->assertSame(RegularTripStatus::Completed, $return->status);
+        $this->assertSame(1, $return->passengers()->count());
+        $this->assertSame('Home Rider', $return->passengers()->first()?->full_name);
+
+        $next = RegularTrip::query()
+            ->where('boat_id', $going->boat_id)
+            ->where('status', RegularTripStatus::Scheduled)
+            ->get()
+            ->first(fn (RegularTrip $trip) => $trip->isOutbound());
+
+        $this->assertNotNull($next);
+        $this->assertSame('Waiting', $next->workflowStatusLabel());
+
+        $this->actingAs($admin)
+            ->get(route('regular-trips.show', $next))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('tripHistory', function ($history) use ($return) {
+                    $row = collect($history)->firstWhere('id', $return->id);
+
+                    return is_array($row)
+                        && $row['leg_label'] === 'Return'
+                        && $row['passenger_count'] === 1
+                        && $row['status'] === 'completed';
+                }));
     }
 
     /**

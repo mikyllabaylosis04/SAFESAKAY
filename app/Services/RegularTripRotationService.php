@@ -520,12 +520,34 @@ class RegularTripRotationService
             ->where('boat_id', $trip->boat_id)
             ->whereDate('trip_date', $trip->trip_date)
             ->where('route', $trip->route)
+            ->orderBy('cycle_number')
             ->orderBy('id')
             ->get()
-            ->filter(fn (RegularTrip $item) => $item->isOutbound())
             ->reject(fn (RegularTrip $item) => $item->status === RegularTripStatus::Cancelled)
+            ->filter(fn (RegularTrip $item) => $this->visibleInTripList($item))
+            ->sortBy(fn (RegularTrip $item) => sprintf(
+                '%05d-%d-%010d',
+                $item->cycleNumber(),
+                $item->isOutbound() ? 0 : 1,
+                $item->id,
+            ))
             ->values()
             ->all();
+    }
+
+    /**
+     * A return stays on the day's list once passengers are recorded or the boat has arrived.
+     * Blank return slots created ahead of time stay hidden.
+     */
+    private function visibleInTripList(RegularTrip $item): bool
+    {
+        if ($item->isOutbound()) {
+            return true;
+        }
+
+        return $item->arrived_at !== null
+            || $item->status === RegularTripStatus::Completed
+            || (int) ($item->passengers_count ?? $item->passenger_count) > 0;
     }
 
     private function lockTrip(RegularTrip $trip): RegularTrip

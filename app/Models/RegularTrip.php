@@ -342,23 +342,27 @@ class RegularTrip extends Model
 
     public function workflowStatusLabel(): string
     {
-        if ($this->isOutbound()) {
-            return $this->status->label();
+        if ($this->status === RegularTripStatus::Completed || $this->remarks === 'completed_today') {
+            return 'Completed';
         }
 
-        if ($this->status === RegularTripStatus::Completed) {
-            return 'Return Completed';
+        if ($this->status === RegularTripStatus::OffDuty) {
+            return 'Off Duty';
         }
 
         if ($this->status === RegularTripStatus::Cancelled) {
             return 'Cancelled';
         }
 
-        if ($this->arrived_at !== null) {
-            return 'Arrived at Origin';
+        if ($this->status === RegularTripStatus::OnTrip) {
+            return 'On Trip';
         }
 
-        return 'Return Pending';
+        if (! $this->isOutbound() && $this->arrived_at !== null) {
+            return 'On Trip';
+        }
+
+        return 'Waiting';
     }
 
     public function returnDepartureTime(): string

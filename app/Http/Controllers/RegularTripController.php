@@ -179,14 +179,12 @@ class RegularTripController extends Controller
         $history = $historyTrips
             ->map(function (RegularTrip $item, int $index) {
                 $revenue = $this->tripRevenue($item);
-                $returnRevenue = $item->returnTrips->sum(
-                    fn (RegularTrip $return) => $this->tripRevenue($return)['revenue'],
-                );
-                $tripRevenue = round($revenue['revenue'] + $returnRevenue, 2);
+                $tripRevenue = round((float) $revenue['revenue'], 2);
 
                 return [
                     'id' => $item->id,
                     'trip_number' => $index + 1,
+                    'leg_label' => $item->isOutbound() ? 'Going' : 'Return',
                     'date' => $item->trip_date->toDateString(),
                     'date_label' => $item->trip_date->format('F j, Y'),
                     'departure_time_label' => $item->clockLabel($item->departed_at) ?? 'Not Recorded',
@@ -198,7 +196,7 @@ class RegularTripController extends Controller
                     'revenue' => $tripRevenue,
                     'revenue_label' => OrganizationRoute::formatPeso($tripRevenue),
                     'status' => $item->status->value,
-                    'status_label' => $item->status->label(),
+                    'status_label' => $item->workflowStatusLabel(),
                 ];
             })
             ->all();
