@@ -234,7 +234,7 @@ class Boat extends Model
 
         $date = $onDate ? Carbon::parse($onDate)->toDateString() : now()->toDateString();
 
-        if ($this->status === BoatStatus::OnTrip && $date === now()->toDateString()) {
+        if ($this->status === BoatStatus::OnTrip && $date === now('Asia/Manila')->toDateString()) {
             return false;
         }
 
@@ -325,10 +325,28 @@ class Boat extends Model
         });
     }
 
+    public function hasRegularTripOnTrip(Carbon|string $date): bool
+    {
+        return RegularTrip::query()
+            ->withoutGlobalScope('organization')
+            ->where('boat_id', $this->id)
+            ->whereDate('trip_date', Carbon::parse($date)->toDateString())
+            ->where('status', RegularTripStatus::OnTrip)
+            ->exists();
+    }
+
     public function slotConflictMessage(Carbon|string $date, ?string $time = null, ?int $exceptBookingId = null): ?string
     {
         $onDate = Carbon::parse($date)->toDateString();
         $slot = $time ? Carbon::parse($time)->format('H:i') : null;
+
+        if ($this->status === BoatStatus::OnTrip && $onDate === now('Asia/Manila')->toDateString()) {
+            return 'This boat is already on a regular trip and cannot take a rental today.';
+        }
+
+        if ($this->hasRegularTripOnTrip($onDate)) {
+            return 'This boat is already on a regular trip and cannot take a rental today.';
+        }
 
         if (! $this->isEligibleForPrivateBooking($onDate)) {
             if ($this->status === BoatStatus::OnTrip && $onDate === now()->toDateString()) {

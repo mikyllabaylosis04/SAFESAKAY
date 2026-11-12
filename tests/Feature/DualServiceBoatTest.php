@@ -68,7 +68,7 @@ class DualServiceBoatTest extends TestCase
         $this->assertSame(BoatStatus::OnDuty, $boat->fresh()->status);
     }
 
-    public function test_pending_booking_does_not_cancel_regular_trips(): void
+    public function test_pending_rental_request_takes_the_boat_off_the_regular_trip_schedule(): void
     {
         $admin = User::factory()->create();
         $boat = $this->bothServiceBoat($admin);
@@ -87,8 +87,8 @@ class DualServiceBoatTest extends TestCase
             'status' => BoatBookingStatus::Pending,
         ]);
 
-        $this->assertSame(RegularTripStatus::Scheduled, $trip->fresh()->status);
-        $this->assertSame(BoatStatus::OnDuty, $boat->fresh()->status);
+        $this->assertSame(RegularTripStatus::Cancelled, $trip->fresh()->status);
+        $this->assertSame('Skipped — private booking scheduled.', $trip->fresh()->remarks);
 
         $this->actingAs($admin)
             ->get(route('schedules.regular-trip-rotation'))
@@ -201,7 +201,7 @@ class DualServiceBoatTest extends TestCase
                     ->where('trip_date', '2026-09-19')
                     ->contains(
                         fn ($row) => (int) data_get($row, 'boat.id') === (int) $boat->id
-                            && data_get($row, 'status') === 'off_duty',
+                            && data_get($row, 'status') === 'scheduled',
                     )));
     }
 

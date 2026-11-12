@@ -187,9 +187,9 @@ class RegularTripRotationService
                 ]);
             }
 
-            if ($record->boat?->hasCommittedPrivateBookingOn($record->trip_date)) {
+            if ($record->boat?->hasRentalBlockingRegularTripOn($record->trip_date)) {
                 throw ValidationException::withMessages([
-                    'status' => ['This boat has an exclusive rental and cannot depart a regular trip.'],
+                    'status' => ['This boat has a rental on this day and cannot depart a regular trip.'],
                 ]);
             }
 
@@ -1060,13 +1060,15 @@ class RegularTripRotationService
             ->whereIn('status', [
                 RegularTripStatus::Scheduled,
                 RegularTripStatus::Delayed,
+                RegularTripStatus::OffDuty,
             ])
             ->get();
 
         foreach ($trips as $trip) {
             $trip->update([
                 'status' => RegularTripStatus::Cancelled,
-                'remarks' => $trip->remarks ?: 'Skipped — private booking scheduled.',
+                'remarks' => 'Skipped — private booking scheduled.',
+                'queue_order' => null,
             ]);
         }
 
@@ -1083,8 +1085,8 @@ class RegularTripRotationService
             ->with(['boat' => fn ($query) => $query->withoutGlobalScope('organization')])
             ->when($organizationId, fn ($query) => $query->where('organization_id', $organizationId))
             ->where('status', RegularTripStatus::Cancelled)
-            ->where('remarks', 'Skipped — private booking scheduled.')
-            ->whereDate('trip_date', '>=', now()->toDateString())
+            ->where('remarks', 'like', '%private booking%')
+            ->whereDate('trip_date', '>=', now('Asia/Manila')->toDateString())
             ->get()
             ->filter(fn (RegularTrip $trip) => $trip->isOutbound())
             ->filter(fn (RegularTrip $trip) => $trip->boat instanceof Boat
@@ -1105,7 +1107,7 @@ class RegularTripRotationService
             return 0;
         }
 
-        if ($trip->remarks !== 'Skipped — private booking scheduled.') {
+        if (! str_contains((string) $trip->remarks, 'private booking')) {
             return 0;
         }
 

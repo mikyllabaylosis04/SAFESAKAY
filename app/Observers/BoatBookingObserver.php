@@ -180,6 +180,7 @@ class BoatBookingObserver
     private function releaseRegularTrips(BoatBooking $booking): void
     {
         if (! in_array($booking->status, [
+            BoatBookingStatus::Pending,
             BoatBookingStatus::AwaitingPayment,
             BoatBookingStatus::Confirmed,
             BoatBookingStatus::Ongoing,
