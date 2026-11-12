@@ -21,7 +21,8 @@ use Throwable;
  * Refund rules for paid rentals:
  * - Passenger cancels before trip day: the downpayment is kept; anything paid above it creates a pending
  *   refund request for barangay admin review. Xendit runs only after the admin approves.
- * - On trip day or later, the passenger can no longer cancel.
+ * - On trip day or later, the passenger can no longer cancel a confirmed or paid rental.
+ * - A request that is still waiting for operator approval can be cancelled any day.
  * - Weather hold: reschedule only, no refund.
  * - Operator cannot operate, admin cancels, or a verified boat no-show: the passenger is refunded in full or reschedules.
  * Refunds go back to the passenger's GCash through Xendit (test mode); the admin steps in when Xendit fails.
@@ -110,6 +111,10 @@ class RentalRefundService
     {
         if (! $booking->canBeCancelled()) {
             return false;
+        }
+
+        if ($booking->status === BoatBookingStatus::Pending) {
+            return true;
         }
 
         $tripDate = $booking->booking_date?->toDateString();

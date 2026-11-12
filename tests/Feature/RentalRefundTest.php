@@ -150,6 +150,23 @@ class RentalRefundTest extends TestCase
         $this->assertNotNull($lines->firstWhere('payment_status', 'refunded'));
     }
 
+    public function test_passenger_can_cancel_a_pending_request_on_the_trip_day(): void
+    {
+        Http::fake();
+        $booking = $this->booking(BoatBookingStatus::Pending, payments: []);
+        $booking->update(['booking_date' => now('Asia/Manila')->toDateString()]);
+
+        $this->actingAs($this->passenger, 'sanctum')
+            ->getJson("/api/bookings/{$booking->id}")
+            ->assertJsonPath('data.can_passenger_cancel', true);
+
+        $this->cancelAsPassenger($booking);
+
+        $this->assertSame(BoatBookingStatus::Cancelled, $booking->fresh()->status);
+        $this->assertDatabaseCount('rental_refund_requests', 0);
+        Http::assertNothingSent();
+    }
+
     public function test_passenger_cannot_cancel_on_trip_day(): void
     {
         Http::fake();
