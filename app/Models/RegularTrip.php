@@ -389,7 +389,11 @@ class RegularTrip extends Model
 
     public function canEncodePassengers(): bool
     {
-        if ($this->status === RegularTripStatus::Cancelled || $this->status === RegularTripStatus::Completed || $this->status === RegularTripStatus::OffDuty || $this->remarks === 'completed_today') {
+        if ($this->status === RegularTripStatus::Cancelled || $this->status === RegularTripStatus::Completed || $this->status === RegularTripStatus::OffDuty) {
+            return false;
+        }
+
+        if ($this->remarks === 'completed_today' && ! $this->status->isWaiting()) {
             return false;
         }
 

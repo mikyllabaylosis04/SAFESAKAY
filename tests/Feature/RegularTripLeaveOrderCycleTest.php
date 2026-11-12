@@ -298,6 +298,28 @@ class RegularTripLeaveOrderCycleTest extends TestCase
         $this->assertSame('completed_today', $ended->remarks);
     }
 
+    public function test_back_to_rotation_clears_the_completed_mark_so_passengers_can_be_added(): void
+    {
+        $user = User::factory()->create();
+        [$trip] = $this->fourBoatLineup($user);
+        $trip->update([
+            'status' => RegularTripStatus::OffDuty,
+            'remarks' => 'completed_today',
+            'queue_order' => null,
+        ]);
+
+        $this->actingAs($user)
+            ->patch(route('regular-trips.status.update', $trip), [
+                'status' => RegularTripStatus::Scheduled->value,
+            ])
+            ->assertRedirect();
+
+        $trip->refresh();
+        $this->assertSame(RegularTripStatus::Scheduled, $trip->status);
+        $this->assertNull($trip->remarks);
+        $this->assertTrue($trip->canEncodePassengers());
+    }
+
     /**
      * @return array{0: RegularTrip, 1: RegularTrip, 2: RegularTrip, 3: RegularTrip}
      */

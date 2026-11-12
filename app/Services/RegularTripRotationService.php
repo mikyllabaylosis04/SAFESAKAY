@@ -459,7 +459,9 @@ class RegularTripRotationService
             }
 
             if ($record->status->isWaiting()) {
-                return $record;
+                $this->clearEndedDutyMark($record);
+
+                return $record->fresh();
             }
 
             if ($this->boatHasActiveTrip($record, excludeId: $record->id)) {
@@ -470,14 +472,43 @@ class RegularTripRotationService
 
             $record->update([
                 'status' => RegularTripStatus::Scheduled,
+                'remarks' => in_array($record->remarks, ['completed_today', 'off_duty'], true) ? null : $record->remarks,
                 'queue_order' => $this->nextWaitingOrder($record),
             ]);
 
-            $this->syncReturnTrip($record->fresh());
+            $fresh = $record->fresh();
+            $this->syncReturnTrip($fresh);
+            $this->clearEndedDutyMark($fresh);
+            $pair = $this->pairedReturn($fresh);
+
+            if ($pair) {
+                $this->clearEndedDutyMark($pair);
+            }
+
             $this->refreshBoardingForDay((int) $record->organization_id, $record->trip_date->toDateString());
 
             return $record->fresh();
         });
+    }
+
+    private function clearEndedDutyMark(RegularTrip $trip): void
+    {
+        if (in_array($trip->status, [RegularTripStatus::Completed, RegularTripStatus::OnTrip, RegularTripStatus::Cancelled], true)) {
+            return;
+        }
+
+        $dutyRemark = in_array($trip->remarks, ['completed_today', 'off_duty'], true);
+
+        if ($trip->status !== RegularTripStatus::OffDuty && ! $dutyRemark) {
+            return;
+        }
+
+        $trip->update([
+            'status' => $trip->status === RegularTripStatus::OffDuty
+                ? RegularTripStatus::Scheduled
+                : $trip->status,
+            'remarks' => $dutyRemark ? null : $trip->remarks,
+        ]);
     }
 
     /**

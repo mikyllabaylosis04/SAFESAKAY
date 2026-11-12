@@ -924,10 +924,14 @@ function hasDeparted(trip: RegularTripRecord) {
 }
 
 function isClosedDuty(trip: RegularTripRecord) {
+    if (trip.status === 'completed' || trip.status === 'off_duty') {
+        return true;
+    }
+
     return (
-        trip.status === 'completed' ||
-        trip.status === 'off_duty' ||
-        trip.remarks === 'completed_today'
+        trip.remarks === 'completed_today' &&
+        trip.status !== 'scheduled' &&
+        trip.status !== 'delayed'
     );
 }
 
