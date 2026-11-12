@@ -1063,6 +1063,7 @@ class RegularTripRotationService
                 RegularTripStatus::Scheduled,
                 RegularTripStatus::Delayed,
                 RegularTripStatus::OffDuty,
+                RegularTripStatus::OnTrip,
             ])
             ->get();
 

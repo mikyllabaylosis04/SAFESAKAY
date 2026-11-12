@@ -134,6 +134,52 @@ class DualServiceBoatTest extends TestCase
         $this->assertSame(BoatStatus::OnDuty, $boat->fresh()->status);
     }
 
+    public function test_operator_can_accept_a_rental_that_is_still_marked_on_a_regular_trip(): void
+    {
+        $admin = User::factory()->create();
+        $operator = User::factory()->create([
+            'organization_id' => $admin->organization_id,
+            'role' => UserRole::Operator,
+            'username' => 'oceanic.operator',
+        ]);
+        $boat = $this->bothServiceBoat($admin);
+        $boat->operator?->update(['user_id' => $operator->id]);
+        $trip = $this->scheduleToday($admin, $boat);
+        $trip->update([
+            'status' => RegularTripStatus::OnTrip,
+            'departed_at' => now(),
+        ]);
+        $boat->update(['status' => BoatStatus::OnTrip]);
+
+        $booking = BoatBooking::query()->create([
+            'organization_id' => $admin->organization_id,
+            'boat_id' => $boat->id,
+            'code' => 'BR-2026-00108',
+            'customer_name' => 'Mikylla',
+            'package' => 'Cloud 9',
+            'destination' => 'Cloud 9',
+            'booking_date' => '2026-09-19',
+            'start_time' => '11:00',
+            'passenger_count' => 4,
+            'status' => BoatBookingStatus::Pending,
+        ]);
+
+        RegularTrip::query()->whereKey($trip->id)->update([
+            'status' => RegularTripStatus::OnTrip->value,
+            'remarks' => null,
+            'departed_at' => now(),
+        ]);
+        $boat->update(['status' => BoatStatus::OnTrip]);
+
+        $this->actingAs($operator, 'sanctum')
+            ->postJson("/api/bookings/{$booking->id}/approve")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'awaiting_payment');
+
+        $this->assertSame(RegularTripStatus::Cancelled, $trip->fresh()->status);
+        $this->assertSame('Skipped — private booking scheduled.', $trip->fresh()->remarks);
+    }
+
     public function test_completed_rental_returns_the_boat_to_the_regular_trip_schedule(): void
     {
         $admin = User::factory()->create();

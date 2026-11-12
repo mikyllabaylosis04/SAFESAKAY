@@ -16,6 +16,7 @@ use App\Services\RentalCommissionService;
 use App\Services\RentalCompletionService;
 use App\Services\RentalPaymentService;
 use App\Services\RentalPricingService;
+use App\Services\RegularTripRotationService;
 use App\Services\TripConfirmationService;
 use App\Services\WeatherSuspensionService;
 use App\Support\XenditBookingPresenter;
@@ -590,6 +591,12 @@ class BoatBookingController extends Controller
         $boatBooking->loadMissing('boat.operator');
         $date = $boatBooking->booking_date->toDateString();
         $time = Carbon::parse($boatBooking->start_time)->format('H:i');
+
+        if ($boatBooking->boat) {
+            app(RegularTripRotationService::class)->releaseBoatForPrivateBooking($boatBooking->boat, $date);
+            $boatBooking->setRelation('boat', $boatBooking->boat->fresh());
+        }
+
         $conflict = $boatBooking->boat?->slotConflictMessage($date, $time, $boatBooking->id);
 
         if ($conflict) {

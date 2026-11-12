@@ -681,6 +681,12 @@ class BookingController extends Controller
             $booking->loadMissing('boat');
             $date = $booking->booking_date->toDateString();
             $time = Carbon::parse($booking->start_time)->format('H:i');
+
+            if ($booking->boat) {
+                app(RegularTripRotationService::class)->releaseBoatForPrivateBooking($booking->boat, $date);
+                $booking->setRelation('boat', $booking->boat->fresh());
+            }
+
             $conflict = $booking->boat?->slotConflictMessage($date, $time, $booking->id);
 
             if ($conflict) {
