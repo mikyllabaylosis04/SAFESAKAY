@@ -205,6 +205,90 @@ class DualServiceBoatTest extends TestCase
                     ->contains(fn ($row) => (int) data_get($row, 'boat.id') === (int) $boat->id)));
     }
 
+    public function test_a_finished_rental_returns_the_boat_to_the_next_regular_day(): void
+    {
+        $admin = User::factory()->create();
+        $staying = $this->bothServiceBoat($admin);
+        $rented = $this->bothServiceBoat($admin);
+        $this->scheduleToday($admin, $staying);
+        $rentedTrip = $this->scheduleToday($admin, $rented);
+        $rentedTrip->update(['rotation_order' => 2]);
+
+        $booking = BoatBooking::query()->create([
+            'organization_id' => $admin->organization_id,
+            'boat_id' => $rented->id,
+            'code' => 'BR-2026-00120',
+            'customer_name' => 'Guest',
+            'package' => 'Cloud 9',
+            'destination' => 'Cloud 9',
+            'booking_date' => '2026-09-19',
+            'start_time' => '11:00',
+            'passenger_count' => 4,
+            'status' => BoatBookingStatus::Confirmed,
+        ]);
+
+        app(\App\Services\RegularTripRotationService::class)->syncUpcoming($admin->organization_id);
+
+        $this->assertFalse(
+            RegularTrip::query()
+                ->where('boat_id', $rented->id)
+                ->whereDate('trip_date', '2026-09-20')
+                ->where('status', '!=', RegularTripStatus::Cancelled)
+                ->exists(),
+        );
+
+        Carbon::setTestNow('2026-09-20 09:00:00');
+        $booking->update(['status' => BoatBookingStatus::Completed]);
+
+        $this->actingAs($admin)
+            ->get(route('schedules.regular-trip-rotation'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('trips', fn ($trips) => collect($trips)
+                    ->where('trip_date', '2026-09-20')
+                    ->contains(fn ($row) => (int) data_get($row, 'boat.id') === (int) $rented->id
+                        && data_get($row, 'status') === 'scheduled')
+                    && collect($trips)
+                        ->where('trip_date', '2026-09-20')
+                        ->filter(fn ($row) => (int) data_get($row, 'boat.id') === (int) $rented->id
+                            && data_get($row, 'direction') === 'Lakandula → Placer')
+                        ->count() === 1));
+    }
+
+    public function test_an_open_rental_keeps_the_boat_off_the_next_regular_day(): void
+    {
+        $admin = User::factory()->create();
+        $staying = $this->bothServiceBoat($admin);
+        $rented = $this->bothServiceBoat($admin);
+        $this->scheduleToday($admin, $staying);
+        $this->scheduleToday($admin, $rented);
+
+        BoatBooking::query()->create([
+            'organization_id' => $admin->organization_id,
+            'boat_id' => $rented->id,
+            'code' => 'BR-2026-00121',
+            'customer_name' => 'Guest',
+            'package' => 'Cloud 9',
+            'destination' => 'Cloud 9',
+            'booking_date' => '2026-09-20',
+            'start_time' => '11:00',
+            'passenger_count' => 4,
+            'status' => BoatBookingStatus::Confirmed,
+        ]);
+
+        app(\App\Services\RegularTripRotationService::class)->syncUpcoming($admin->organization_id);
+        Carbon::setTestNow('2026-09-20 09:00:00');
+
+        $this->actingAs($admin)
+            ->get(route('schedules.regular-trip-rotation'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('trips', fn ($trips) => collect($trips)
+                    ->where('trip_date', '2026-09-20')
+                    ->where('boat.id', $rented->id)
+                    ->isEmpty()));
+    }
+
     public function test_active_rental_hides_an_off_duty_boat_until_the_rental_is_completed(): void
     {
         $admin = User::factory()->create();

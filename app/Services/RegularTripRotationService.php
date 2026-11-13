@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Enums\BoatBookingStatus;
 use App\Enums\RegularTripScheduleMode;
 use App\Enums\RegularTripStatus;
 use App\Enums\UserRole;
 use App\Models\Boat;
+use App\Models\BoatBooking;
 use App\Models\Organization;
 use App\Models\RegularTrip;
 use App\Models\User;
@@ -1132,7 +1134,132 @@ class RegularTripRotationService
             $restored += $this->restoreSkippedPrivateBookingTrip($trip);
         }
 
+        $restored += $this->rejoinBoatsLeftOutForAFinishedRental($organizationId);
+
         return $restored;
+    }
+
+    /**
+     * A rental removes the boat before the next day is copied, so that day never gets a row to restore.
+     * Once the rental is finished, put the boat back at the end of the waiting queue.
+     */
+    private function rejoinBoatsLeftOutForAFinishedRental(?int $organizationId): int
+    {
+        $today = now('Asia/Manila')->startOfDay();
+        $horizon = $today->copy()->addDays(7);
+        $lookback = $today->copy()->subDays(14)->toDateString();
+
+        $boats = Boat::query()
+            ->withoutGlobalScope('organization')
+            ->when($organizationId, fn ($query) => $query->where('organization_id', $organizationId))
+            ->get()
+            ->filter(fn (Boat $boat) => $boat->isEligibleForRegularTrip());
+
+        $restored = 0;
+
+        foreach ($boats as $boat) {
+            $latest = RegularTrip::query()
+                ->withoutGlobalScope('organization')
+                ->where('boat_id', $boat->id)
+                ->whereDate('trip_date', '>=', $lookback)
+                ->orderByDesc('trip_date')
+                ->orderByDesc('id')
+                ->get()
+                ->first(fn (RegularTrip $trip) => $trip->isOutbound()
+                    && $trip->remarks !== self::ARCHIVE_HOLD_REMARK);
+
+            if (! $latest instanceof RegularTrip) {
+                continue;
+            }
+
+            $leftForRental = $latest->status === RegularTripStatus::Cancelled
+                && str_contains((string) $latest->remarks, 'private booking');
+
+            for ($date = $today->copy(); $date->lte($horizon); $date->addDay()) {
+                if ($boat->hasRentalBlockingRegularTripOn($date)) {
+                    continue;
+                }
+
+                $alreadyListed = RegularTrip::query()
+                    ->withoutGlobalScope('organization')
+                    ->where('boat_id', $boat->id)
+                    ->whereDate('trip_date', $date->toDateString())
+                    ->get()
+                    ->contains(fn (RegularTrip $trip) => $trip->isOutbound()
+                        && $trip->status !== RegularTripStatus::Cancelled);
+
+                if ($alreadyListed) {
+                    continue;
+                }
+
+                $lineupExists = RegularTrip::query()
+                    ->withoutGlobalScope('organization')
+                    ->where('organization_id', $boat->organization_id)
+                    ->whereDate('trip_date', $date->toDateString())
+                    ->exists();
+
+                if (! $date->isSameDay($today) && ! $lineupExists) {
+                    continue;
+                }
+
+                if (! $leftForRental && ! $this->hasFinishedRentalOn($boat, $date)) {
+                    continue;
+                }
+
+                $this->rejoinBoatOnDate($boat, $latest, $date);
+                $restored++;
+            }
+        }
+
+        return $restored;
+    }
+
+    private function hasFinishedRentalOn(Boat $boat, Carbon $date): bool
+    {
+        return BoatBooking::query()
+            ->withoutGlobalScope('organization')
+            ->where('boat_id', $boat->id)
+            ->whereDate('booking_date', $date->toDateString())
+            ->whereIn('status', [
+                BoatBookingStatus::Completed,
+                BoatBookingStatus::Cancelled,
+                BoatBookingStatus::Rejected,
+                BoatBookingStatus::PassengerNoShow,
+            ])
+            ->exists();
+    }
+
+    private function rejoinBoatOnDate(Boat $boat, RegularTrip $template, Carbon $date): void
+    {
+        $manualLineup = RegularTrip::query()
+            ->withoutGlobalScope('organization')
+            ->where('organization_id', $boat->organization_id)
+            ->whereDate('trip_date', $date->toDateString())
+            ->where('is_auto_generated', false)
+            ->exists();
+
+        $trip = RegularTrip::query()->withoutGlobalScope('organization')->create([
+            'organization_id' => $boat->organization_id,
+            'boat_id' => $boat->id,
+            'route' => $template->route,
+            'direction' => $template->direction,
+            'rotation_order' => $template->rotation_order ?: 1,
+            'cycle_number' => 1,
+            'schedule_mode' => RegularTripScheduleMode::Rush,
+            'trip_date' => $date->toDateString(),
+            'departure_time' => $template->departure_time,
+            'passenger_count' => 0,
+            'status' => RegularTripStatus::Scheduled,
+            'remarks' => null,
+            'is_auto_generated' => ! $manualLineup && ! $date->isSameDay(now('Asia/Manila')),
+        ]);
+
+        $trip->update([
+            'queue_order' => $this->nextWaitingOrder($trip),
+        ]);
+
+        $this->recordHistory($trip);
+        $this->ensureReturnTrip($trip->fresh());
     }
 
     private function restoreSkippedPrivateBookingTrip(RegularTrip $trip): int
