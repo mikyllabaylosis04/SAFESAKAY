@@ -255,6 +255,62 @@ class DualServiceBoatTest extends TestCase
                         ->count() === 1));
     }
 
+    public function test_a_boat_returns_even_when_the_finished_rental_was_on_an_earlier_day(): void
+    {
+        Carbon::setTestNow('2026-09-18 09:00:00');
+
+        $admin = User::factory()->create();
+        $staying = $this->bothServiceBoat($admin);
+        $rented = $this->bothServiceBoat($admin);
+
+        RegularTrip::query()->create([
+            'organization_id' => $admin->organization_id,
+            'boat_id' => $staying->id,
+            'route' => 'Lakandula ↔ Placer',
+            'direction' => 'Lakandula → Placer',
+            'rotation_order' => 1,
+            'trip_date' => '2026-09-20',
+            'departure_time' => '08:00',
+            'passenger_count' => 0,
+            'status' => RegularTripStatus::Scheduled,
+        ]);
+        RegularTrip::query()->create([
+            'organization_id' => $admin->organization_id,
+            'boat_id' => $rented->id,
+            'route' => 'Lakandula ↔ Placer',
+            'direction' => 'Lakandula → Placer',
+            'rotation_order' => 2,
+            'trip_date' => '2026-09-18',
+            'departure_time' => '08:00',
+            'passenger_count' => 0,
+            'status' => RegularTripStatus::Scheduled,
+        ]);
+
+        BoatBooking::query()->create([
+            'organization_id' => $admin->organization_id,
+            'boat_id' => $rented->id,
+            'code' => 'BR-2026-00122',
+            'customer_name' => 'Guest',
+            'package' => 'Cloud 9',
+            'destination' => 'Cloud 9',
+            'booking_date' => '2026-09-18',
+            'start_time' => '11:00',
+            'passenger_count' => 4,
+            'status' => BoatBookingStatus::Completed,
+        ]);
+
+        Carbon::setTestNow('2026-09-20 09:00:00');
+
+        $this->actingAs($admin)
+            ->get(route('schedules.regular-trip-rotation'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('trips', fn ($trips) => collect($trips)
+                    ->where('trip_date', '2026-09-20')
+                    ->contains(fn ($row) => (int) data_get($row, 'boat.id') === (int) $rented->id
+                        && data_get($row, 'status') === 'scheduled')));
+    }
+
     public function test_an_open_rental_keeps_the_boat_off_the_next_regular_day(): void
     {
         $admin = User::factory()->create();
