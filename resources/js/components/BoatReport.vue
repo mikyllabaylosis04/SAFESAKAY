@@ -15,7 +15,7 @@ import {
     Wrench,
     X,
 } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -147,8 +147,13 @@ const filteredBoats = computed(() =>
             return false;
         }
 
-        if (operatorFilter.value !== 'all' && (boat.operator_name || '') !== operatorFilter.value) {
-            return false;
+        if (operatorFilter.value !== 'all') {
+            const selected = operatorFilter.value.trim().toLowerCase();
+            const operator = (boat.operator_name || '').trim().toLowerCase();
+
+            if (operator !== selected) {
+                return false;
+            }
         }
 
         if (search.value) {
@@ -411,6 +416,10 @@ function applyFilters() {
     search.value = draftSearch.value.trim();
     page.value = 1;
 }
+
+watch([draftStatus, draftOperator, draftSearch], () => {
+    applyFilters();
+});
 
 function resetFilters() {
     draftStatus.value = 'all';

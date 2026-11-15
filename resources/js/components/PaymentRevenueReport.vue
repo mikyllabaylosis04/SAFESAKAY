@@ -664,7 +664,7 @@ function downloadBoat(format: ReportDownloadFormat) {
                 </label>
                 <label class="w-full xl:w-44">
                     <span class="mb-1.5 block text-xs font-semibold text-ink-soft dark:text-slate-400">Transaction Type</span>
-                    <select v-model="draft.type" class="h-10 w-full rounded-xl border border-[#d7e8f6] bg-white dark:border-white/10 dark:bg-white/5 px-3 text-sm text-ink dark:text-sky-50 outline-none">
+                    <select v-model="draft.type" class="h-10 w-full rounded-xl border border-[#d7e8f6] bg-white dark:border-white/10 dark:bg-white/5 px-3 text-sm text-ink dark:text-sky-50 outline-none" @change="applyFilters">
                         <option value="all">All Types</option>
                         <option value="regular">Regular Trip</option>
                         <option value="rental">Private Rental</option>
@@ -672,7 +672,7 @@ function downloadBoat(format: ReportDownloadFormat) {
                 </label>
                 <label class="w-full xl:w-40">
                     <span class="mb-1.5 block text-xs font-semibold text-ink-soft dark:text-slate-400">Payment Method</span>
-                    <select v-model="draft.method" class="h-10 w-full rounded-xl border border-[#d7e8f6] bg-white dark:border-white/10 dark:bg-white/5 px-3 text-sm text-ink dark:text-sky-50 outline-none">
+                    <select v-model="draft.method" class="h-10 w-full rounded-xl border border-[#d7e8f6] bg-white dark:border-white/10 dark:bg-white/5 px-3 text-sm text-ink dark:text-sky-50 outline-none" @change="applyFilters">
                         <option value="all">All Methods</option>
                         <option value="cash">Cash</option>
                         <option value="gcash">GCash</option>
@@ -681,7 +681,7 @@ function downloadBoat(format: ReportDownloadFormat) {
                 </label>
                 <label class="w-full xl:w-40">
                     <span class="mb-1.5 block text-xs font-semibold text-ink-soft dark:text-slate-400">Status</span>
-                    <select v-model="draft.status" class="h-10 w-full rounded-xl border border-[#d7e8f6] bg-white dark:border-white/10 dark:bg-white/5 px-3 text-sm text-ink dark:text-sky-50 outline-none">
+                    <select v-model="draft.status" class="h-10 w-full rounded-xl border border-[#d7e8f6] bg-white dark:border-white/10 dark:bg-white/5 px-3 text-sm text-ink dark:text-sky-50 outline-none" @change="applyFilters">
                         <option value="all">All Status</option>
                         <option value="completed">Completed</option>
                         <option value="on_trip">On Trip</option>
