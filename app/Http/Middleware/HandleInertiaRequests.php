@@ -50,7 +50,9 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user,
                 'organization' => $user?->organization ? [
                     'id' => $user->organization->id,
-                    'name' => $user->organization->name,
+                    'name' => $user->organization->displayName(),
+                    'address' => $user->organization->address,
+                    'place_label' => $user->organization->adminPlaceLabel(),
                     'archived' => $user->organization->isArchived(),
                 ] : null,
                 'is_super_admin' => $user?->isSuperAdmin() ?? false,

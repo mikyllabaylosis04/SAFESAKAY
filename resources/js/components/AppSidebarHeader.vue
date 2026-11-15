@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
+import { MapPin } from '@lucide/vue';
 import { computed } from 'vue';
 import AdminNotificationDropdown from '@/components/AdminNotificationDropdown.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
@@ -15,11 +16,18 @@ import type { User } from '@/types';
 
 const page = usePage();
 const user = computed(() => page.props.auth.user as User);
+const organization = computed(() => page.props.auth.organization);
+const appName = computed(() => String(page.props.name || 'SafeSakay'));
+const placeLine = computed(() => {
+    const address = organization.value?.address?.trim();
+
+    return address || organization.value?.name || '';
+});
 </script>
 
 <template>
     <header
-        class="relative isolate flex h-[4.5rem] shrink-0 items-center justify-between border-b border-[#d7e8f6] px-4 dark:border-white/10 md:px-6"
+        class="relative isolate flex min-h-[4.5rem] shrink-0 items-center justify-between gap-4 border-b border-[#d7e8f6] px-4 py-2 dark:border-white/10 md:px-6"
     >
         <div class="pointer-events-none absolute inset-0 overflow-hidden">
         <svg
@@ -41,8 +49,27 @@ const user = computed(() => page.props.auth.user as User);
         </svg>
         </div>
 
-        <div class="relative z-10 flex items-center gap-2">
+        <div class="relative z-10 flex min-w-0 items-center gap-2">
             <SidebarTrigger class="-ml-1 text-[#0f4c8a] dark:text-sky-100" />
+
+            <div
+                v-if="organization"
+                class="min-w-0 leading-tight"
+            >
+                <p class="truncate text-sm font-extrabold tracking-wide text-[#c62828] uppercase dark:text-rose-300">
+                    {{ appName }}
+                </p>
+                <p class="truncate text-[11px] font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                    {{ placeLine }}
+                </p>
+                <p class="mt-1 text-[10px] font-semibold tracking-[0.14em] text-slate-400 uppercase">
+                    Your organization
+                </p>
+                <p class="flex min-w-0 items-center gap-1 text-sm font-semibold text-[#16324f] dark:text-sky-50">
+                    <MapPin class="size-3.5 shrink-0 text-[#e53935]" />
+                    <span class="truncate">{{ organization.place_label || organization.name }}</span>
+                </p>
+            </div>
         </div>
 
         <div class="relative z-10 flex items-center gap-3">

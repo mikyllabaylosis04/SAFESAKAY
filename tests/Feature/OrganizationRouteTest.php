@@ -345,6 +345,18 @@ class OrganizationRouteTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_admin_header_shows_which_organization_the_admin_belongs_to(): void
+    {
+        $admin = $this->lakandulaAdmin();
+
+        $this->actingAs($admin)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('auth.organization.place_label', 'Brgy. Lakandula')
+                ->where('auth.organization.address', 'Lakandula, Del Carmen, Siargao'));
+    }
+
     private function lakandulaAdmin(): User
     {
         $organization = Organization::factory()->create([

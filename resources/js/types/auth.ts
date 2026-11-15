@@ -15,6 +15,9 @@ export type Auth = {
     organization?: {
         id: number;
         name: string;
+        address?: string;
+        place_label?: string;
+        archived?: boolean;
     } | null;
     is_super_admin?: boolean;
 };
