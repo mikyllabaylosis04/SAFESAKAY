@@ -54,19 +54,19 @@ const placeLine = computed(() => {
 
             <div
                 v-if="organization"
-                class="min-w-0 leading-tight"
+                class="min-w-0 max-w-sm rounded-xl border border-[#c5def5] bg-white/95 px-3 py-1.5 shadow-sm dark:border-white/10 dark:bg-[#0f4c8a]/40"
             >
-                <p class="truncate text-sm font-extrabold tracking-wide text-[#c62828] uppercase dark:text-rose-300">
+                <p class="truncate text-[13px] font-extrabold tracking-[0.14em] text-[#0f4c8a] uppercase dark:text-sky-50">
                     {{ appName }}
                 </p>
-                <p class="truncate text-[11px] font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                <p class="truncate text-[10px] font-semibold tracking-wide text-[#5b87b0] uppercase dark:text-sky-200/80">
                     {{ placeLine }}
                 </p>
-                <p class="mt-1 text-[10px] font-semibold tracking-[0.14em] text-slate-400 uppercase">
+                <p class="mt-1 text-[10px] font-semibold tracking-[0.14em] text-[#1b7ad8] uppercase">
                     Your organization
                 </p>
-                <p class="flex min-w-0 items-center gap-1 text-sm font-semibold text-[#16324f] dark:text-sky-50">
-                    <MapPin class="size-3.5 shrink-0 text-[#e53935]" />
+                <p class="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-[#0f4c8a] dark:text-sky-50">
+                    <MapPin class="size-3.5 shrink-0 text-[#1b7ad8]" />
                     <span class="truncate">{{ organization.place_label || organization.name }}</span>
                 </p>
             </div>
