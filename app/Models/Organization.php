@@ -36,6 +36,8 @@ use Illuminate\Support\Str;
  * @property int|null $closure_requested_by
  * @property Carbon|null $closure_rejected_at
  * @property string|null $closure_rejection_reason
+ * @property Carbon|null $billing_locked_at
+ * @property string|null $billing_lock_reason
  * @property string|null $gcash_account_name
  * @property string|null $gcash_qr_path
  */
@@ -61,6 +63,8 @@ use Illuminate\Support\Str;
     'closure_requested_by',
     'closure_rejected_at',
     'closure_rejection_reason',
+    'billing_locked_at',
+    'billing_lock_reason',
     'gcash_account_name',
     'gcash_qr_path',
     'operator_no_show_grace_minutes',
@@ -228,9 +232,19 @@ class Organization extends Model
             'Resuming pump boat operations',
             'Ready to use SafeSakay again',
             'Organization operations have resumed',
-            'Financial or budget concerns resolved',
+            'Financial or subscription concerns resolved',
             'Returning from another management system',
             'Other reason',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function suspensionReasons(): array
+    {
+        return [
+            'Unpaid subscription',
         ];
     }
 
@@ -445,6 +459,7 @@ class Organization extends Model
             'restore_requested_at' => 'datetime',
             'closure_requested_at' => 'datetime',
             'closure_rejected_at' => 'datetime',
+            'billing_locked_at' => 'datetime',
         ];
     }
 
